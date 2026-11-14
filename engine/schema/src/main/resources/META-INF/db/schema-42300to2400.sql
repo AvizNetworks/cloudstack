@@ -271,3 +271,31 @@ CALL `cloud`.`IDEMPOTENT_ADD_COLUMN`('cloud.disk_offering', 'error_policy', 'VAR
 
 -- Rename persisted FlashArray provider name (plugin getName() changed from 'Flash Array' to 'FlashArray')
 UPDATE `cloud`.`storage_pool` SET `storage_provider_name` = 'FlashArray' WHERE `storage_provider_name` = 'Flash Array';
+
+-- Aviz ONES network plugin: one row per ONES Fabric Manager registered with addOnesProvider, scoped to a physical network
+CREATE TABLE IF NOT EXISTS `cloud`.`ones_providers` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `uuid` varchar(40) DEFAULT NULL,
+  `host_id` bigint unsigned NOT NULL COMMENT 'the pseudo host (type L2Networking) representing the controller',
+  `physical_network_id` bigint unsigned NOT NULL,
+  `provider_name` varchar(255) NOT NULL,
+  `device_name` varchar(255) NOT NULL,
+  `url` varchar(255) NOT NULL COMMENT 'ONES Fabric Manager API base URL',
+  `fabric_name` varchar(255) NOT NULL,
+  `login_url` varchar(1024) NOT NULL,
+  `username` varchar(255) NOT NULL,
+  `password` varchar(1024) NOT NULL COMMENT 'encrypted with the database key',
+  `client_cert_path` varchar(1024) DEFAULT NULL,
+  `client_key_path` varchar(1024) DEFAULT NULL,
+  `ca_cert_path` varchar(1024) DEFAULT NULL,
+  `tenant_gateway_suffix` varchar(32) DEFAULT NULL COMMENT 'lab: tenant gateway = subnet head + this, e.g. 128.3',
+  `gateway_url` varchar(1024) DEFAULT NULL COMMENT 'Aviz Gateway REST API',
+  `gateway_token` varchar(1024) DEFAULT NULL COMMENT 'its API token, encrypted with the database key',
+  `gateway_ca_cert_path` varchar(1024) DEFAULT NULL,
+  `public_ips` varchar(1024) DEFAULT NULL COMMENT 'one per network for internet access',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uc_ones_providers__uuid` (`uuid`),
+  KEY `i_ones_providers__physical_network_id` (`physical_network_id`),
+  CONSTRAINT `fk_ones_providers__host_id` FOREIGN KEY (`host_id`) REFERENCES `host` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ones_providers__physical_network_id` FOREIGN KEY (`physical_network_id`) REFERENCES `physical_network` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
