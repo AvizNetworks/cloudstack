@@ -103,6 +103,8 @@ public class OnesGuestNetworkGuru extends GuestNetworkGuru {
     /** ONES: ^[A-Za-z][A-Za-z0-9_-]{0,11}$ */
     private static final int TENANT_NAME_HEX = 10;
     private static final int ONES_TIMEOUT_S = 900;
+    /** Pool addresses at the bottom (.1 to .9) left to the operator, in pools big enough to spare them. */
+    static final int OPERATOR_RESERVED = 9;
 
     /** Tenant made in design(), waiting for setup() to know the network id. Keyed by CIDR. */
     private static final Map<String, CreateOnesTenantAnswer> PENDING = new ConcurrentHashMap<>();
@@ -295,13 +297,20 @@ public class OnesGuestNetworkGuru extends GuestNetworkGuru {
         return super.allocate(network, nic, vm);
     }
 
+    /**
+     * The first free address in the pool. The pool's bottom {@value #OPERATOR_RESERVED} addresses
+     * (.1 to .9) are left to the operator, but only in a pool big enough to spare them (at least
+     * twice as many usable addresses, i.e. a /27 or bigger); a smaller pool is used from .1.
+     */
     String freeAddress(final Network network, final String pool) throws InsufficientAddressCapacityException {
         Set<String> used = new HashSet<>(_nicDao.listIpAddressInNetwork(network.getId()));
         used.add(network.getGateway());
         String[] range = NetUtils.getIpRangeFromCidr(pool.split("/")[0], Integer.parseInt(pool.split("/")[1]));
         long first = NetUtils.ip2Long(range[0]);
         long last = NetUtils.ip2Long(range[1]);
-        for (long ip = first + 9; ip <= last; ip++) {      // .10 up: leave the pool's bottom to the operator
+        long usable = last - first + 1;
+        long start = usable >= 2L * OPERATOR_RESERVED ? first + OPERATOR_RESERVED : first;
+        for (long ip = start; ip <= last; ip++) {
             String a = NetUtils.long2Ip(ip);
             if (!used.contains(a)) {
                 return a;

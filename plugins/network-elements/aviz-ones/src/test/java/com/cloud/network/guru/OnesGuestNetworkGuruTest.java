@@ -392,12 +392,48 @@ public class OnesGuestNetworkGuruTest {
     }
 
     @Test
+    public void aSlash27PoolStillKeepsTheBottomNineForTheOperator() throws Exception {
+        Network n = implementing();
+        Mockito.when(nicDao.listIpAddressInNetwork(NETWORK_ID)).thenReturn(Collections.emptyList());
+
+        Assert.assertEquals("10.0.0.10", guru.freeAddress(n, "10.0.0.0/27"));     // 30 usable: .1-.9 reserved
+    }
+
+    @Test
+    public void smallPoolsAreUsedFromDotOne() throws Exception {
+        Network n = implementing();
+        Mockito.when(nicDao.listIpAddressInNetwork(NETWORK_ID)).thenReturn(Collections.emptyList());
+
+        Assert.assertEquals("10.0.0.1", guru.freeAddress(n, "10.0.0.0/28"));      // 14 usable
+        Assert.assertEquals("10.0.0.1", guru.freeAddress(n, "10.0.0.0/29"));      // 6 usable: used to be always "full"
+        Assert.assertEquals("10.0.0.1", guru.freeAddress(n, "10.0.0.0/30"));      // 2 usable
+    }
+
+    @Test
+    public void aSmallPoolStillSkipsTheGatewayAndUsedAddresses() throws Exception {
+        Network n = implementing();
+        Mockito.when(n.getGateway()).thenReturn("10.0.0.1");
+        Mockito.when(nicDao.listIpAddressInNetwork(NETWORK_ID)).thenReturn(Arrays.asList("10.0.0.2", "10.0.0.3"));
+
+        Assert.assertEquals("10.0.0.4", guru.freeAddress(n, "10.0.0.0/29"));
+    }
+
+    @Test
     public void aFullPoolIsReported() {
         Network n = implementing();
-        Mockito.when(nicDao.listIpAddressInNetwork(NETWORK_ID))
-                .thenReturn(Arrays.asList("10.0.0.10", "10.0.0.11", "10.0.0.12", "10.0.0.13", "10.0.0.14"));
+        Mockito.when(nicDao.listIpAddressInNetwork(NETWORK_ID)).thenReturn(Arrays.asList("10.0.0.1", "10.0.0.2"));
 
-        Assert.assertThrows(InsufficientAddressCapacityException.class, () -> guru.freeAddress(n, "10.0.0.0/28"));
+        Assert.assertThrows(InsufficientAddressCapacityException.class, () -> guru.freeAddress(n, "10.0.0.0/30"));
+    }
+
+    @Test
+    public void aFullLargePoolIsReported() {
+        Network n = implementing();
+        Mockito.when(nicDao.listIpAddressInNetwork(NETWORK_ID)).thenReturn(Arrays.asList("10.0.0.10", "10.0.0.11", "10.0.0.12",
+                "10.0.0.13", "10.0.0.14", "10.0.0.15", "10.0.0.16", "10.0.0.17", "10.0.0.18", "10.0.0.19", "10.0.0.20", "10.0.0.21",
+                "10.0.0.22", "10.0.0.23", "10.0.0.24", "10.0.0.25", "10.0.0.26", "10.0.0.27", "10.0.0.28", "10.0.0.29", "10.0.0.30"));
+
+        Assert.assertThrows(InsufficientAddressCapacityException.class, () -> guru.freeAddress(n, "10.0.0.0/27"));
     }
 
     // ------------------------------------------------------------------ shutdown / trash

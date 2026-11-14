@@ -445,13 +445,24 @@ public class OnesApiClientImplTest {
     }
 
     @Test
-    public void deallocateServersPatchesDelete() {
+    public void allocateServersHonoursADedicatedRequest() {
+        tenants.put(TENANT, tenantRecord(TENANT));
+        Answer a = client().allocateServers(new AllocateOnesServersCommand(FABRIC, TENANT, Collections.singletonList("gpu-01"), false));
+
+        Assert.assertTrue(a.getDetails(), a.getResult());
+        JsonObject sent = JsonParser.parseString(bodies.get("PATCH /fm/fabrics/" + FABRIC + "/tenants/" + TENANT)).getAsJsonObject();
+        Assert.assertFalse(sent.getAsJsonArray("servers").get(0).getAsJsonObject().get("shared").getAsBoolean());
+    }
+
+    @Test
+    public void deallocateServersPatchesDeleteShared() {
         tenants.put(TENANT, tenantRecord(TENANT));
         Answer a = client().deallocateServers(new DeallocateOnesServersCommand(FABRIC, TENANT, Collections.singletonList("gpu-01")));
 
         Assert.assertTrue(a.getResult());
         JsonObject sent = JsonParser.parseString(bodies.get("PATCH /fm/fabrics/" + FABRIC + "/tenants/" + TENANT)).getAsJsonObject();
         Assert.assertEquals("DELETE", sent.get("operation").getAsString());
+        Assert.assertTrue(sent.getAsJsonArray("servers").get(0).getAsJsonObject().get("shared").getAsBoolean());
     }
 
     @Test

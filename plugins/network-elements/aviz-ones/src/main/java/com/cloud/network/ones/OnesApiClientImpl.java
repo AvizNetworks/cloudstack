@@ -390,21 +390,26 @@ public class OnesApiClientImpl implements OnesApiClient {
 
     @Override
     public Answer allocateServers(final AllocateOnesServersCommand cmd) {
-        return patchServers(cmd, cmd.getFabricName(), cmd.getTenantName(), "ADD", cmd.getServerNames());
-    }
-
-    @Override
-    public Answer deallocateServers(final DeallocateOnesServersCommand cmd) {
-        return patchServers(cmd, cmd.getFabricName(), cmd.getTenantName(), "DELETE", cmd.getServerNames());
+        return patchServers(cmd, cmd.getFabricName(), cmd.getTenantName(), "ADD", cmd.getServerNames(), cmd.isShared());
     }
 
     /**
-     * PATCH a tenant's servers. Always "shared": a hypervisor carries many guest networks, so
-     * ONES must trunk each tenant's VLAN on its leaf port rather than give it the port.
+     * Servers leave a tenant the way OnesElement adds them: shared. (A server given to one tenant
+     * exclusively would be added with shared=false; this plugin never does that.)
+     */
+    @Override
+    public Answer deallocateServers(final DeallocateOnesServersCommand cmd) {
+        return patchServers(cmd, cmd.getFabricName(), cmd.getTenantName(), "DELETE", cmd.getServerNames(), true);
+    }
+
+    /**
+     * PATCH a tenant's servers. "shared" means ONES trunks the tenant's VLAN on the server's leaf
+     * port next to other tenants' (a hypervisor carries many guest networks) instead of giving the
+     * port to this tenant alone.
      */
     private Answer patchServers(final Command cmd, final String fabric, final String tenant, final String operation,
-            final List<String> serverNames) {
-        String what = operation + " servers " + serverNames + " on ONES tenant " + tenant;
+            final List<String> serverNames, final boolean shared) {
+        String what = operation + (shared ? " shared" : " dedicated") + " servers " + serverNames + " on ONES tenant " + tenant;
         try {
             JsonObject body = new JsonObject();
             body.addProperty("operation", operation);
@@ -412,7 +417,7 @@ public class OnesApiClientImpl implements OnesApiClient {
             for (String serverName : serverNames) {
                 JsonObject server = new JsonObject();
                 server.addProperty("serverName", serverName);
-                server.addProperty("shared", true);
+                server.addProperty("shared", shared);
                 servers.add(server);
             }
             body.add("servers", servers);

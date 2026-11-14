@@ -72,8 +72,10 @@ Changes from the 4.19 original:
 - **VLAN, not VXLAN**: the guest network is `vlan://<tenant vlanId>`, the VLAN ONES trunks to
   the hypervisors' leaf ports; VXLAN stays inside the fabric.
 - **Addresses**: CIDR = tenant subnet (`vlanSubnetCPU`); VM/VR addresses only from the
-  compute pool (`tenantIpPool`), .10 up.
-- **Hosts are attached `shared: true`** (one hypervisor carries many tenants).
+  compute pool (`tenantIpPool`): .10 up in a /27 or bigger pool (.1-.9 are left to the
+  operator), .1 up in a smaller one.
+- **Hosts are attached `shared: true`** (one hypervisor carries many tenants). The client sends
+  the `shared` value of the allocate command; the plugin always asks for shared.
 - **Tenant names** `cs` + 10 hex (ONES allows at most 12 characters).
 - **Gateway**: CloudStack requires `gateway=`/`netmask=` on createNetwork for an isolated
   network without SourceNat, before ONES has chosen the subnet. A gateway inside the subnet ONES
